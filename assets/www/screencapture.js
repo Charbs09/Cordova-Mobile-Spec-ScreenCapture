@@ -24,8 +24,8 @@ window.delayBeforeCapture = 200; //the number of milliseconds to wait to allow t
 
 //This assigns the capture function to the window for calling within Javascript.  window.capture will call cordova.exec with a string literal to 
 //indicate that we want to call "capture" function in ScreenCapture.java
-window.capture = function(callback, errorCallBack, x, y, w, h, fileName) {
-	cordova.exec(callback, errorCallBack, "ScreenCapture", "capture",[x,y,w,h,fileName]);
+window.capture = function(callback, errorCallBack, captureOptions) {
+	cordova.exec(callback, errorCallBack, "ScreenCapture", "capture",[captureOptions]);
 }
 
 window.captureAndCompare = function(callback, errorCallBack,captureOptions,compareOptions) {
