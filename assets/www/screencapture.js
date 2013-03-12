@@ -21,6 +21,7 @@ function CompareOptions(compareURL) {
 
 //Global Variables
 window.delayBeforeCapture = 200; //the number of milliseconds to wait to allow the WebView to update before calling capture
+
 //This assigns the capture function to the window for calling within Javascript.  window.capture will call cordova.exec with a string literal to 
 //indicate that we want to call "capture" function in ScreenCapture.java
 window.capture = function(callback, errorCallBack, x, y, w, h, fileName) {
@@ -43,37 +44,3 @@ function callCaptureAndCompareDelay(callBack, errorCallBack, captureOptions, com
 	window.captureComplete = false;
 	setTimeout(function(){window.captureAndCompare(callBack, errorCallBack, captureOptions, compareOptions)},window.delayBeforeCapture);		
 }
-
-/*//Helper function to call the capture command after the WebView has updated, the parameters indicate a sub-rectangle of the whole screen that we wish to save to a .png
-function callCaptureDelay(x,y,w,h) {
-	window.captureComplete = false;
-	setTimeout(function(){callCapture(x,y,w,h,window.defaultFileName);},window.delayBeforeCapture);	
-}
-//Helper function, full screenshot, with a specified name
-function callCaptureDelay(fileName) {
-	window.captureComplete = false;
-	setTimeout(function(){callCapture(0,0,-1,-1,fileName);},window.delayBeforeCapture);	
-}
-//Helper function to call the capture command after the WebView has updated, the parameters indicate a sub-rectangle of the whole screen that we wish to save to a .png
-//fileName indicates the optional name of the screen capture file
-function callCaptureDelay(x,y,w,h,fileName) {
-	window.captureComplete = false;
-	setTimeout(function(){window.callCapture(x,y,w,h, fileName);},window.delayBeforeCapture);	
-}*/
-
-
-/*//full screenshot, with specified name
-function callCaptureAndCompareDelay(compareURL,colorTolerance,pixelTolerance, writeActualToFile, writeDiffToFile, fileName) {
-	window.captureComplete = false;
-	setTimeout(function(){callCaptureAndCompare(0,0,-1,-1,compareURL,colorTolerance,pixelTolerance, writeActualToFile, writeDiffToFile, fileName);},window.delayBeforeCapture);		
-}
-//helper function that doesn't use the optional fileName, default will be used which is "screenshot"
-function callCaptureAndCompareDelay(x,y,w,h,compareURL,colorTolerance,pixelTolerance, writeActualToFile, writeDiffToFile) {
-	window.captureComplete = false;
-	setTimeout(function(){callCaptureAndCompare(x,y,w,h,compareURL,colorTolerance,pixelTolerance, writeActualToFile, writeDiffToFile, window.defaultFileName);},window.delayBeforeCapture);		
-}
-//helper function that uses optional fileName
-function callCaptureAndCompareDelay(x,y,w,h,compareURL,colorTolerance,pixelTolerance, writeActualToFile, writeDiffToFile, fileName) {
-	window.captureComplete = false;
-	setTimeout(function(){callCaptureAndCompare(x,y,w,h,compareURL,colorTolerance,pixelTolerance, writeActualToFile, writeDiffToFile, fileName);},window.delayBeforeCapture);		
-}*/
