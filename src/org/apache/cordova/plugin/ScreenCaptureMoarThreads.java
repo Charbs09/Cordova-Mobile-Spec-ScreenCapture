@@ -89,7 +89,7 @@ public class ScreenCapture extends CordovaPlugin {
             	mCaptureCount++;
             	
             	if(async) {
-            		PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
+            		PluginResult result = new PluginResult(PluginResult.Status.OK);
             		result.setKeepCallback(true);
             		callback.sendPluginResult(result);
             	}
