@@ -5,13 +5,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.api.CallbackContext;
 import org.apache.cordova.api.CordovaInterface;
 import org.apache.cordova.api.CordovaPlugin;
+import org.apache.cordova.api.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +22,6 @@ import android.graphics.Picture;
 import android.graphics.Bitmap.CompressFormat;
 
 import android.os.Environment;
-import android.util.Log;
 
 /**
  * This Cordova plugin for Android allows taking a screenshot of the current content running on the device.  When
@@ -38,7 +36,7 @@ public class ScreenCapture extends CordovaPlugin {
 	//the url of the saved screenshot.  By default the plugin tries to save to the sdcard.  In the event there is no sdcard mounted, Android will
 	//save to an emulated location at: mnt/shell/emulator/<user profile number>.  
 	//You can access this location using ddms in the android SDK (android-sdk-windows\tools\lib\ddms.bat)
-	private static BlockingQueue<ScreenCapturePicture> mCaptureQueue = new LinkedBlockingQueue<ScreenCapturePicture>();
+	
 	
 	/**
 	 * execute is called from the cordova plugin framework
@@ -81,146 +79,142 @@ public class ScreenCapture extends CordovaPlugin {
 		final CordovaInterface coreThreadCordova = this.cordova;
 		final boolean async = captureOptions.optBoolean("asynchronous");
 		
-		
 		// capture on the ui thread
 		cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
             	CordovaWebView uiThreadView = webView;
-            	try {
-            		//capturePicture writes the entire document into a picture object, this includes areas that aren't visible within the current view
-            		mCaptureQueue.put(new ScreenCapturePicture(uiThreadView.capturePicture(), new String(mFileName+"_"+mCaptureCount+".png")));
-            		mCaptureCount++;
-	            } 
-	    		catch (InterruptedException ex) {}
+            	//capturePicture writes the entire document into a picture object, this includes areas that aren't visible within the current view
+            	final Picture picture = uiThreadView.capturePicture();
+            	final String fileName = mFileName+"_"+mCaptureCount;
+            	mCaptureCount++;
             	
             	if(async) {
-            		callback.success("Capture taken");
-            	}    	
-            }
-        });
-		
-		//do file IO and optional compare on a background thread
-		cordova.getThreadPool().execute(new Runnable() {
-			public void run() {
-				 int x = captureOptions.optInt("x");
-				 int y = captureOptions.optInt("y");
-				 int width = captureOptions.optInt("width");
-				 int height = captureOptions.optInt("height");
-				
-				 //need to know if we want to write the actual file, option for compare, automatically true for capture
-				 boolean createActual = (compareOptions != null) ? compareOptions.optBoolean("writeActualToFile") : true; 
-						 
-				 ScreenCapturePicture scPicture;
-				 String fileLocation = "";
-				 
-				 int[] internalPixels = new int[0];
-				 
-				 /**** Write Capture File Portion ****/
-				 try {
-					//grab the latest capture from the ui thread, block if not ready yet 
-					scPicture = mCaptureQueue.take();
-					
-					//copy whole picture into a bitmap
-					Bitmap bm = Bitmap.createBitmap(scPicture.picture.getWidth(), scPicture.picture.getHeight(), Bitmap.Config.ARGB_8888);
-					Canvas c = new Canvas(bm);
-					scPicture.picture.draw(c);
-					
-					if(width > 0 && height > 0) {
-						//width and height > 0 means we want to sub rect
-						internalPixels = new int[width*height];
-						bm.getPixels(internalPixels, 0, width, x, y, width, height);
-						bm = Bitmap.createBitmap(internalPixels,width,height, Bitmap.Config.ARGB_8888);
-					}
-					else if(compareOptions != null) {
-						int w = scPicture.picture.getWidth();
-						int h = scPicture.picture.getHeight();
-						//no sub rect requested, but we want to do a compare so create the pixels
-						internalPixels = new int[w*h];
-						bm.getPixels(internalPixels, 0, w, x, y, w, h);
-					}
-					//else no subrect requested and no pixels back
-					
-					if(compareOptions == null || createActual == true) {
-						//write only if we are in a pure capture function call, or our compareOptions wants an actual output
-						fileLocation = writeBitmapToFile(bm, scPicture.fileName);
-					}
-					bm.recycle();
-					
-					
-					/**** Compare portion ****/
-					//we have a comparison url so we want to do a compare now
-					if(compareOptions != null) {
-						//set the options
-						String compareURL = compareOptions.optString("compareURL");
-						boolean createDiff = compareOptions.optBoolean("writeDiffToFile");
-						double colorTolerance = compareOptions.optDouble("colorTolerance");
-						double pixelTolerance = compareOptions.optDouble("pixelTolerance");
-						boolean binaryDiff = compareOptions.optBoolean("binaryDiff");
-						 
-						boolean fileNotFound = false;
-						int[] comparePixels;
-						int[] diffPixels = new int[0];
-						int numPixelsDifferent = 0;
-						int compareWidth, compareHeight;
-						String diffFileLocation = "";
-						InputStream is =null;
-						try {
-						    is=coreThreadCordova.getActivity().getAssets().open(compareURL);
-						} catch (IOException e) {
-							fileNotFound = true;
-						}
-						if(fileNotFound) {
-							//couldn't get it from assets, try the sdcard
-							try {
-								is = new FileInputStream(compareURL);
-							}
-							catch(IOException err) {
-								//could not find the file in assets or the sdcard, return a failure
-								callback.error("Error: Could not open compare image:"+err.getLocalizedMessage());
-								 //return err.getLocalizedMessage();
-							}
-						}
-						
-						//decode the png into a bitmap
-						bm = BitmapFactory.decodeStream(is);
-						compareWidth = bm.getWidth();
-						compareHeight = bm.getHeight();
-						//create the correct size int[]
-						comparePixels = new int[compareWidth * compareHeight];
-						//setup our diff array if the user specified they want one
-						if(createDiff) {
-							diffPixels = new int[comparePixels.length];
-						}
-						//get the pixels for comparison
-						bm.getPixels(comparePixels, 0, compareWidth, 0, 0, compareWidth, compareHeight);
-						//compare the images
-						numPixelsDifferent = compareImageData(internalPixels, comparePixels,colorTolerance, pixelTolerance, diffPixels, binaryDiff);
-						//we have the diff, now create a diff file if requested and there is a difference
-						if(createDiff && numPixelsDifferent > 0) {
-							//create our bitmap
-							Bitmap diffBitmap = Bitmap.createBitmap(compareWidth, compareHeight, Bitmap.Config.ARGB_8888);
-				
-							// Set the pixels
-							diffBitmap.setPixels(diffPixels, 0, compareWidth, 0, 0, compareWidth, compareHeight);
-							diffFileLocation = writeBitmapToFile(diffBitmap, (mFileName+"_Diff"));
-							diffBitmap.recycle();
-						}
-						bm.recycle();
-						//even if async was true (ie we called the callback already), compare was also requested so use the callback to return the results
-						callback.success(numPixelsDifferent+" "+fileLocation+" "+diffFileLocation);
-						
-					}
-					//no compare url was given, and we did not callback upon picture grab so now we return with just the fileLocation
-					else if(!async) {
-						callback.success(fileLocation);
-					}
-				
-				} 
-				catch (InterruptedException ex) {
-					callback.error(ex.getLocalizedMessage());
-				} //error getting the picture from the ui thread
-			};
-		}); //end background thread file io and compare
+            		PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
+            		result.setKeepCallback(true);
+            		callback.sendPluginResult(result);
+            	}
+            	
+            	//do file IO and optional compare on a background thread
+        		cordova.getThreadPool().execute(new Runnable() {
+        			public void run() {
+        				 int x = captureOptions.optInt("x");
+        				 int y = captureOptions.optInt("y");
+        				 int width = captureOptions.optInt("width");
+        				 int height = captureOptions.optInt("height");
+        				
+        				 //need to know if we want to write the actual file, option for compare, automatically true for capture
+        				 boolean createActual = (compareOptions != null) ? compareOptions.optBoolean("writeActualToFile") : true; 
+        						 
+        				 String fileLocation = "";
+        				 
+        				 int[] internalPixels = new int[0];
+        				 
+        				 /**** Write Capture File Portion ****/
+    					//copy whole picture into a bitmap
+    					Bitmap bm = Bitmap.createBitmap(picture.getWidth(), picture.getHeight(), Bitmap.Config.ARGB_8888);
+    					Canvas c = new Canvas(bm);
+    					picture.draw(c);
+    					
+    					if(width > 0 && height > 0) {
+    						//width and height > 0 means we want to sub rect
+    						internalPixels = new int[width*height];
+    						bm.getPixels(internalPixels, 0, width, x, y, width, height);
+    						bm = Bitmap.createBitmap(internalPixels,width,height, Bitmap.Config.ARGB_8888);
+    					}
+    					else if(compareOptions != null) {
+    						int w = picture.getWidth();
+    						int h = picture.getHeight();
+    						//no sub rect requested, but we want to do a compare so create the pixels
+    						internalPixels = new int[w*h];
+    						bm.getPixels(internalPixels, 0, w, x, y, w, h);
+    					}
+    					//else no subrect requested and no pixels back
+    					
+    					if(compareOptions == null || createActual == true) {
+    						//write only if we are in a pure capture function call, or our compareOptions wants an actual output
+    						fileLocation = writeBitmapToFile(bm, fileName);
+    					}
+    					bm.recycle();
+    					
+    					
+    					/**** Compare portion ****/
+    					//we have a comparison url so we want to do a compare now
+    					if(compareOptions != null) {
+    						//set the options
+    						String compareURL = compareOptions.optString("compareURL");
+    						boolean createDiff = compareOptions.optBoolean("writeDiffToFile");
+    						double colorTolerance = compareOptions.optDouble("colorTolerance");
+    						double pixelTolerance = compareOptions.optDouble("pixelTolerance");
+    						boolean binaryDiff = compareOptions.optBoolean("binaryDiff");
+    						 
+    						boolean fileNotFound = false;
+    						int[] comparePixels;
+    						int[] diffPixels = new int[0];
+    						int numPixelsDifferent = 0;
+    						int compareWidth, compareHeight;
+    						String diffFileLocation = "";
+    						InputStream is =null;
+    						try {
+    						    is=coreThreadCordova.getActivity().getAssets().open(compareURL);
+    						} catch (IOException e) {
+    							fileNotFound = true;
+    						}
+    						if(fileNotFound) {
+    							//couldn't get it from assets, try the sdcard
+    							try {
+    								is = new FileInputStream(compareURL);
+    							}
+    							catch(IOException err) {
+    								//could not find the file in assets or the sdcard, return a failure
+    								callback.error("Error: Could not open compare image:"+err.getLocalizedMessage());
+    								 //return err.getLocalizedMessage();
+    							}
+    						}
+    						
+    						//decode the png into a bitmap
+    						bm = BitmapFactory.decodeStream(is);
+    						compareWidth = bm.getWidth();
+    						compareHeight = bm.getHeight();
+    						//create the correct size int[]
+    						comparePixels = new int[compareWidth * compareHeight];
+    						//setup our diff array if the user specified they want one
+    						if(createDiff) {
+    							diffPixels = new int[comparePixels.length];
+    						}
+    						//get the pixels for comparison
+    						bm.getPixels(comparePixels, 0, compareWidth, 0, 0, compareWidth, compareHeight);
+    						//compare the images
+    						numPixelsDifferent = compareImageData(internalPixels, comparePixels,colorTolerance, pixelTolerance, diffPixels, binaryDiff);
+    						//we have the diff, now create a diff file if requested and there is a difference
+    						if(createDiff && numPixelsDifferent > 0) {
+    							//create our bitmap
+    							Bitmap diffBitmap = Bitmap.createBitmap(compareWidth, compareHeight, Bitmap.Config.ARGB_8888);
+    				
+    							// Set the pixels
+    							diffBitmap.setPixels(diffPixels, 0, compareWidth, 0, 0, compareWidth, compareHeight);
+    							diffFileLocation = writeBitmapToFile(diffBitmap, (mFileName+"_Diff"));
+    							diffBitmap.recycle();
+    						}
+    						bm.recycle();
+    						//even if async was true (ie we called the callback already), compare was also requested so use the callback to return the results
+    						PluginResult result = new PluginResult(PluginResult.Status.OK, numPixelsDifferent+" "+fileLocation+" "+diffFileLocation);
+    	            		result.setKeepCallback(false);
+    	            		callback.sendPluginResult(result);
+    						
+    					}
+    					//no compare url was given, and we did not callback upon picture grab so now we return with just the fileLocation
+    					else if(!async) {
+    						PluginResult result = new PluginResult(PluginResult.Status.OK, fileLocation);
+    	            		result.setKeepCallback(false);
+    						callback.success(fileLocation);
+    					}
+        				
+        				
+        			};
+        		}); //end background thread file io and compare
+            	
+            }//end ui thread runnable.run
+        });//end ui thread work
 	}
 	
 	/**
@@ -306,7 +300,7 @@ public class ScreenCapture extends CordovaPlugin {
 		String fileLocation;
 		OutputStream stream = null;
 		try {
-			fileLocation = Environment.getExternalStorageDirectory() +"/"+fileName;
+			fileLocation = Environment.getExternalStorageDirectory() +"/"+fileName+".png";
 			stream = new FileOutputStream(fileLocation);
 			bm.compress(CompressFormat.PNG, 80, stream);
 			if (stream != null) stream.close();
