@@ -8,6 +8,7 @@ function ScreenCaptureOptions() {
 	this.width = -1;
 	this.height = -1;
 	this.fileName = "screenshot";
+	this.asynchronous = false;
 }
 function CompareOptions(compareURL) {
 	this.compareURL = compareURL;
