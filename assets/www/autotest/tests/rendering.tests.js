@@ -40,6 +40,7 @@ window.actualImagePath = ""; //store the path for the actual image from the capt
 window.diffImagePath = ""; //store the path for the diff image
 window.captureComplete = false; //flag to indicate that our native capture command has completed
 window.stressTestError = false;
+window.fileWritten = false;
 
 //callback functions for capture and captureAndCompare plugin calls
 function captureHandler (result) { 
@@ -66,6 +67,28 @@ function captureAnimationHandler(result) {
     }
 	//capture is complete but file io is not complete
 	//alert("Capture");
+}
+function captureHandlerAsync(result) {
+	if((result.toLowerCase()).indexOf("capture taken") !== -1) {
+        window.captureComplete = true;
+    }
+	else {
+		window.actualImagePath = result; 
+		window.fileWritten = true;
+    }
+}
+function captureAndCompareHandlerAsync(result) {
+	if((result.toLowerCase()).indexOf("capture taken") !== -1) {
+        window.captureComplete = true;
+    }
+	else {
+		alert(result);
+		var resultsArray = result.split(' ');
+		window.numPixelsDifferent = parseInt(resultsArray[0]);	
+		window.actualImagePath = resultsArray[1];
+		window.diffImagePath = resultsArray[2];
+		window.fileWritten = true;
+    }
 }
 /**
 * Compare the actual and expected images, using the given tolerance to determine whether the rendering passes or not.
@@ -178,9 +201,11 @@ describe('Image Rendering', function () {
 		window.captureComplete = false;
 		window.imageLoaded = false;
 		window.imagesLoaded = false;
+		window.fileWritten = false;
 	});
 	
-        it("Should render a circle", function() {
+	//test 0: captureAndCompare - basic canvas rendering
+    it("Should render a circle", function() {
 		//draw to the canvas
 		var drawingCanvas = document.getElementById('canvas');
 		var context = drawingCanvas.getContext('2d');
@@ -200,63 +225,55 @@ describe('Image Rendering', function () {
            captureOptions.y = drawingCanvas.offsetTop;
            captureOptions.width = drawingCanvas.width;
            captureOptions.height = drawingCanvas.height;
-			compareOptions.compareURL = "www/autotest/images/baselines/rendering_1.png";
+			compareOptions.compareURL = "www/autotest/images/baselines/rendering_0.png";
 			compareOptions.pixelTolerance = 0.02;
            compareOptions.colorTolerance = 0.00;
 			compareOptions.writeActualToFile = true;
            compareOptions.binaryDiff = false;
 			
 		}
-		//var start = new Date().getTime();
+		
 		callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
 		
 		waitsFor(function() {
 			return window.captureComplete;
 		}, "capture never completed", 2000);
 		runs(function() {
-			//var end = new Date().getTime();
-			//var time = end - start;
-			//alert('Execution time: ' + time);
 			expect(window.numPixelsDifferent).toBe(0);
 		});
 	});
-    //test 2
+    //test 1: captureAndCompare - basic canvas rendering
     it("Should render a square", function() {
         //draw to the canvas
         var drawingCanvas = document.getElementById('canvas');
         var context = drawingCanvas.getContext('2d');
         // Check the element is in the DOM and the browser supports canvas
         if(drawingCanvas.getContext) {
-        // Create the yellow square
-        context.clear();
-        context.strokeStyle = "#000000";
-        context.fillStyle = "#FFFF00";
-        context.beginPath();
-        context.rect(0,0,256,256);
-        context.closePath();
-        context.stroke();
-        context.fill();
-			
-        //set the expected image for this test
-        compareOptions.compareURL = "www/autotest/images/baselines/rendering_1.png"
-       //captureOptions.width = -1;
-       //captureOptions.height = -1;
+			// Create the yellow square
+			context.clear();
+			context.strokeStyle = "#000000";
+			context.fillStyle = "#FFFF00";
+			context.beginPath();
+			context.rect(0,0,256,256);
+			context.closePath();
+			context.stroke();
+			context.fill();
+				
+			//set the expected image for this test
+			compareOptions.compareURL = "www/autotest/images/baselines/rendering_1.png"
         }
-        //var start = new Date().getTime();
+        
         callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
             
         waitsFor(function() {
                  return window.captureComplete;
         }, "capture never completed", 2000);
         runs(function() {
-             //var end = new Date().getTime();
-            // var time = end - start;
-            // alert('Execution time: ' + time);
-                 window.compareComplete = true;
-                 expect(window.numPixelsDifferent).toBe(0);
-                 });
-        });
-	//test 3
+			 window.compareComplete = true;
+			 expect(window.numPixelsDifferent).toBe(0);
+		});
+    });
+	//test 2: capture - basic html image
 	it("should render an image", function() {
 		//add an image
 		var image = loadImage("../images/red256x256.png", function(){window.imageLoaded = true;});
@@ -264,7 +281,6 @@ describe('Image Rendering', function () {
 		document.body.appendChild(image);
 		
 		//set expected image for this test
-		
 		compareOptions.compareURL = "www/autotest/images/baselines/rendering_2.png";
 		//wait for the image to load, timeout if more than 1 second
 		waitsFor(function() {
@@ -280,7 +296,6 @@ describe('Image Rendering', function () {
 			captureOptions.height = image.height;
        
             window.expectedImagePath = "../images/baselines/rendering_2.png";
-            //var start = new Date().getTime();
             callCaptureDelay(captureHandler, captureErrorHandler, captureOptions);
 			//wait for the capture to complete
 			waitsFor(function() {
@@ -304,9 +319,6 @@ describe('Image Rendering', function () {
 					});
 					//now that the compare is complete we can check to see if the test passed
 					runs(function() {
-                         //var end = new Date().getTime();
-                         //var time = end - start;
-                         //alert('Execution time: ' + time);
 						expect(window.numPixelsDifferent).toBe(0);
 						try {
 							image.parentNode.removeChild(image);
@@ -318,15 +330,12 @@ describe('Image Rendering', function () {
 		});
 	});
 	
-	//test 4
+	//test 3: captureAndCompare - html image larger than screen
 	it("should render a complex image", function() {
 		//add an image
 		var image2 = loadImage("../images/Gamut594x916.png", function(){window.imageLoaded = true;});
 		image2.id = "image2";
 		document.body.appendChild(image2);
-		
-		//set expected image for this test
-		//window.expectedImagePath = "../images/baselines/rendering_2.png";
 		
 		//wait for the image to load, timeout if more than 1 second
 		waitsFor(function() {
@@ -361,9 +370,234 @@ describe('Image Rendering', function () {
 		});
 	});
 	
+	//test 4: capture - full screen
+	it("should take a capture of the screen", function() {
+		//set options
+		captureOptions.x = 0;
+		captureOptions.y = 0;
+		captureOptions.width = -1;
+		captureOptions.height = -1;
+   
+		callCaptureDelay(captureHandler, captureErrorHandler, captureOptions);
+		//wait for the capture to complete
+		waitsFor(function() {
+			return window.captureComplete;
+		});
+		//once the capture is complete, load the images
+		runs(function() {
+			//capture is complete, load it and check that the size is the size of the document
+			var actualImage = loadImage(window.actualImagePath, function() {window.imagesLoaded = true;});
+			waitsFor(function() {
+				return window.imagesLoaded;
+			});
+			runs(function() {
+				var sizeMatch = true;
+				if(actualImage.width != getDocWidth()) {
+					sizeMatch = false;
+				}else if(actualImage.height != getDocHeight()) {
+					sizeMatch = false;	
+				}
+				expect(sizeMatch).toBe(true);
+			});
+		});
+	});
 	
-	//test 5 performance
-	it("should capture an animation", function() {
+	//test 5: capture - full document
+	it("should take a capture of the entire document when larger than the screen", function() {
+		 //add an image
+		var image2 = loadImage("../images/Gamut594x916.png", function(){window.imageLoaded = true;});
+		image2.id = "image2";
+		document.body.appendChild(image2);
+		
+		//wait for the image to load, timeout if more than 1 second
+		waitsFor(function() {
+			return window.imageLoaded;	
+		}, "image never loaded",1000);
+		
+		//once image is loaded, call the capture on the next render
+		runs(function() {	
+			callCaptureDelay(captureHandler, captureErrorHandler, captureOptions);
+			//wait for the capture to complete
+			waitsFor(function() {
+				return window.captureComplete;
+			});
+			//once the capture is complete, load the images
+			runs(function() {
+				//capture is complete, load it and check that the size is the size of the document
+				var actualImage = loadImage(window.actualImagePath, function() {window.imagesLoaded = true;});
+				waitsFor(function() {
+					return window.imagesLoaded;
+				});
+				runs(function() {
+					var sizeMatch = true;
+					if(actualImage.width != getDocWidth()) {
+						sizeMatch = false;
+					}else if(actualImage.height != getDocHeight()) {
+						sizeMatch = false;	
+					}
+					expect(sizeMatch).toBe(true);
+					try {
+						image2.parentNode.removeChild(image2);
+					}
+					catch(err) {}
+				});
+			});
+		});
+	});
+	//test 6: capture - larger than document
+	it("should capture the entire document if given size is larger than document", function() {
+		captureOptions.x = 0;
+        captureOptions.y = 0;
+		captureOptions.width = 2000;
+		captureOptions.height = 2000;
+
+		callCaptureDelay(captureHandler, captureErrorHandler, captureOptions);
+		//wait for the capture to complete
+		waitsFor(function() {
+			return window.captureComplete;
+		});
+		//once the capture is complete, load the images
+		runs(function() {
+			//capture is complete, load it and check that the size is the size of the document
+			var actualImage = loadImage(window.actualImagePath, function() {window.imagesLoaded = true;});
+			waitsFor(function() {
+				return window.imagesLoaded;
+			});
+			runs(function() {
+				var sizeMatch = true;
+				if(actualImage.width != getDocWidth()) {
+					sizeMatch = false;
+				}else if(actualImage.height != getDocHeight()) {
+					sizeMatch = false;	
+				}
+				expect(sizeMatch).toBe(true);
+				try {
+					image2.parentNode.removeChild(image2);
+				}
+				catch(err) {}
+			});
+		});
+	});
+	
+	//test 8: captureAndCompare - -x/y
+	it("should clip x/y to 0 when x/y < 0", function() {
+		//set options
+		captureOptions.x = -5;
+		captureOptions.y = -5;
+		captureOptions.width = 256;
+		captureOptions.height = 256;
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_7.png";
+        
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+            
+        waitsFor(function() {
+                 return window.captureComplete;
+        }, "capture never completed", 2000);
+        runs(function() {
+			 window.compareComplete = true;
+			 expect(window.numPixelsDifferent).toBe(0);
+		});
+	});
+	
+	//test 9: capture - async
+	it("should be able to capture asynchronously from the file io", function() {
+		var drawingCanvas = document.getElementById('canvas');
+		var context = drawingCanvas.getContext('2d');
+		//set options
+		captureOptions.x = drawingCanvas.offsetLeft;
+        captureOptions.y = drawingCanvas.offsetTop;
+        captureOptions.width = drawingCanvas.width;
+        captureOptions.height = drawingCanvas.height;
+		captureOptions.asynchronous = true;
+		//compareOptions.compareURL = "www/autotest/images/baselines/rendering_7.png";
+        window.expectedImagePath = "../images/baselines/rendering_1.png";
+        callCaptureDelay(captureHandlerAsync, captureErrorHandler, captureOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			//capture taken, now wait for second callback to indicate the file was written to disk
+			waitsFor(function() {
+				return window.fileWritten;	
+			}, "file never written", 2000);
+			runs(function() {
+				//file was written now do a local compare
+				loadImages([window.actualImagePath, window.expectedImagePath], function() {window.imagesLoaded = true;});
+				//wait for the actual and expected images to load, if not complete within 2 seconds, fail
+				waitsFor(function() {
+					return window.imagesLoaded;
+				}, "could not load one or more of the comparison images", 2000);
+				runs(function() {
+					compareImages(window.imagesForCompare, .00, .04);
+					//wait for the compare to complete
+					waitsFor(function() {
+						return window.compareComplete;
+					});
+					//now that the compare is complete we can check to see if the test passed
+					runs(function() {
+						expect(window.numPixelsDifferent).toBe(0);
+						
+					});
+				});
+				captureOptions.asynchronous = false;
+			});	
+		});
+	});
+	
+	//test 10: captureAndCompare - async
+	it("should be able to capture and compare asynchronously", function() {
+		captureOptions.asynchronous = true;
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_1.png";
+        
+        callCaptureAndCompareDelay(captureAndCompareHandlerAsync, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			//capture taken, now wait for second callback to indicate the file was written to disk
+			waitsFor(function() {
+				return window.fileWritten;	
+			}, "file never written", 2000);
+			runs(function() {
+				expect(window.numPixelsDifferent).toBe(0);
+			});	
+			captureOptions.asynchronous = false;
+		});
+	});
+	
+	//test 11: capture - no fileName
+	it("should provide a default file name if none is given", function() {
+		var drawingCanvas = document.getElementById('canvas');
+		var context = drawingCanvas.getContext('2d');
+		captureOptions.x = drawingCanvas.offsetLeft;
+        captureOptions.y = drawingCanvas.offsetTop;
+		captureOptions.width = drawingCanvas.width;
+		captureOptions.height = drawingCanvas.height;
+		
+		captureOptions.fileName = "";
+		callCaptureDelay(captureHandler, captureErrorHandler, captureOptions);
+		//wait for the capture to complete
+		waitsFor(function() {
+			return window.captureComplete;
+		});
+		//capture is taken but file io is not completed yet, wait for the second callback
+		runs(function() {
+			var defaultNameGiven = false;
+			if((window.actualImagePath.toLowerCase()).indexOf("screenshot") !== -1) {
+				defaultNameGiven = true;
+			}
+			expect(defaultNameGiven).toBe(true);
+		});
+	});
+	
+	//test 4: capture(async) - performance and stress test, canvas
+	/*it("should capture an animation", function() {
        var drawingCanvas = document.getElementById('canvas');
        captureOptions.x = drawingCanvas.offsetLeft;
        captureOptions.y = drawingCanvas.offsetTop;
@@ -377,8 +611,11 @@ describe('Image Rendering', function () {
 		runs(function() {
 			expect(window.stressTestError).toBe(false);
 		});
-	});
+	});*/
+	
+	
 });
+
 var circleX = 0;
 
 function animate() {
@@ -400,11 +637,28 @@ function animate() {
 	context.stroke();
 	context.fill();
 	window.capture(captureHandler, captureErrorHandler, captureOptions);
-//	callCaptureDelay(captureHandler, captureErrorHandler, captureOption
+
 	// request new frame
 	requestAnimFrame(function() {
 	  animate();
 	});
+}
+//helper function for getting document sizes
+function getDocHeight() {
+    var D = document;
+    return Math.max(
+        Math.max(D.body.scrollHeight, D.documentElement.scrollHeight),
+        Math.max(D.body.offsetHeight, D.documentElement.offsetHeight),
+        Math.max(D.body.clientHeight, D.documentElement.clientHeight)
+    );
+}
+function getDocWidth() {
+    var D = document;
+    return Math.max(
+        Math.max(D.body.scrollWidth, D.documentElement.scrollWidth),
+        Math.max(D.body.offsetWidth, D.documentElement.offsetWidth),
+        Math.max(D.body.clientWidth, D.documentElement.clientWidth)
+    );
 }
 //cleanup code to be run after all the tests have run
 function cleanUp() {

@@ -79,7 +79,10 @@ public class ScreenCapture extends CordovaPlugin {
 		cordova.getActivity().runOnUiThread(new Runnable() {
             public void run() {
             	//determine if we have a new fileName and reset counter if so
-            	String nameTemp = captureOptions.optString("fileName");
+            	String nameTemp = captureOptions.optString("fileName","screenshot");
+            	if(nameTemp.equalsIgnoreCase("")) {
+            		nameTemp = "screenshot";
+            	}
             	if(!(nameTemp.equals(mFileName))) {
         			mFileName = nameTemp;
         			mCaptureCount = 0;
@@ -91,7 +94,7 @@ public class ScreenCapture extends CordovaPlugin {
             	mCaptureCount++;
             	
             	if(async) {
-            		PluginResult result = new PluginResult(PluginResult.Status.OK);
+            		PluginResult result = new PluginResult(PluginResult.Status.OK, "capture taken");
             		result.setKeepCallback(true);
             		callback.sendPluginResult(result);
             	}
@@ -117,7 +120,13 @@ public class ScreenCapture extends CordovaPlugin {
     					Canvas c = new Canvas(bm);
     					picture.draw(c);
     					
-    					if(width > 0 && height > 0) {
+    					if(width > 0 && height > 0 && 
+    							width < picture.getWidth() &&
+    							height < picture.getHeight()) 
+    					{
+    						//clip to 0 if less than
+    						x = (x < 0) ? 0 : x;
+    						y = (y < 0) ? 0 : y;
     						//width and height > 0 means we want to sub rect
     						internalPixels = new int[width*height];
     						bm.getPixels(internalPixels, 0, width, x, y, width, height);
@@ -131,7 +140,6 @@ public class ScreenCapture extends CordovaPlugin {
     						bm.getPixels(internalPixels, 0, w, x, y, w, h);
     					}
     					//else no subrect requested and no pixels back
-    					
     					if(compareOptions == null || createActual == true) {
     						//write only if we are in a pure capture function call, or our compareOptions wants an actual output
     						fileLocation = writeBitmapToFile(bm, fileName);
@@ -210,8 +218,8 @@ public class ScreenCapture extends CordovaPlugin {
     						}
     						
     					}
-    					//no compare url was given, and we did not callback upon picture grab so now we return with just the fileLocation
-    					else if(!async) {
+    					//no compare url was given (ie capture only), return with just the fileLocation
+    					else {
     						PluginResult result = new PluginResult(PluginResult.Status.OK, fileLocation);
     	            		result.setKeepCallback(false);
     						callback.success(fileLocation);
