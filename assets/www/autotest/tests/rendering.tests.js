@@ -41,6 +41,7 @@ window.diffImagePath = ""; //store the path for the diff image
 window.captureComplete = false; //flag to indicate that our native capture command has completed
 window.stressTestError = false;
 window.fileWritten = false;
+window.errorResult = "";
 
 //callback functions for capture and captureAndCompare plugin calls
 function captureHandler (result) { 
@@ -58,7 +59,7 @@ function captureAndCompareHandler(result) {
 	window.captureComplete = true;
 }
 function captureErrorHandler(result) {
-	alert(result);
+	window.errorResult = result;
 	window.captureComplete = true;
 }
 function captureAnimationHandler(result) {
@@ -82,7 +83,6 @@ function captureAndCompareHandlerAsync(result) {
         window.captureComplete = true;
     }
 	else {
-		alert(result);
 		var resultsArray = result.split(' ');
 		window.numPixelsDifferent = parseInt(resultsArray[0]);	
 		window.actualImagePath = resultsArray[1];
@@ -202,6 +202,7 @@ describe('Image Rendering', function () {
 		window.imageLoaded = false;
 		window.imagesLoaded = false;
 		window.fileWritten = false;
+		window.errorResult = "";
 	});
 	
 	//test 0: captureAndCompare - basic canvas rendering
@@ -593,6 +594,61 @@ describe('Image Rendering', function () {
 				defaultNameGiven = true;
 			}
 			expect(defaultNameGiven).toBe(true);
+		});
+	});
+	
+	//test 12: captureAndCompare - compare image not found
+	it("should report an error if the compare image is not found", function() {
+		captureOptions.fileName = "Screenshots/errorChecking";
+		compareOptions.compareURL = "this/file/is/not/found.png";
+        
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			var fileNotFound = false;
+			if(window.errorResult.indexOf("Error: Could not open compare image:") !== -1) {
+				fileNotFound = true;
+			}
+			
+			expect(fileNotFound).toBe(true);
+		});
+	});
+	
+	//test 13: captureAndCompare - verify tolerance is clip to 0
+	it("should clip tolerance to 0 when < 0 ", function() {
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_8.png";
+        compareOptions.colorTolerance = -1;
+		compareOptions.pixelTolerance = -1;
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			expect(window.numPixelsDifferent).toBe(1);
+		});
+	});
+	//test 14: captureAndCompare - verify tolerance is clip to 1
+	it("should clip tolerance to 1 when > 1 ", function() {
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_2.png";
+        compareOptions.colorTolerance = 20;
+		compareOptions.pixelTolerance = 20;
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			expect(window.numPixelsDifferent).toBe(0);
 		});
 	});
 	

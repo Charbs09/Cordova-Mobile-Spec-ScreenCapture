@@ -156,7 +156,16 @@ public class ScreenCapture extends CordovaPlugin {
     						double colorTolerance = compareOptions.optDouble("colorTolerance");
     						double pixelTolerance = compareOptions.optDouble("pixelTolerance");
     						boolean binaryDiff = compareOptions.optBoolean("binaryDiff");
-    						 
+    						//clip tolerances to 0 - 1
+    						if(colorTolerance < 0) 
+    							colorTolerance = 0;
+    						else if(colorTolerance > 1)
+    							colorTolerance = 1;
+    						if(pixelTolerance < 0) 
+    							pixelTolerance = 0;
+    						else if(pixelTolerance > 1)
+    							pixelTolerance = 1;
+    						
     						boolean fileNotFound = false;
     						int[] comparePixels;
     						int[] diffPixels = new int[0];
