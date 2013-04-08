@@ -620,7 +620,7 @@ describe('Image Rendering', function () {
 	});
 	
 	//test 13: captureAndCompare - verify tolerance is clip to 0
-	it("should clip tolerance to 0 when < 0 ", function() {
+	it("should clip tolerance to 0 when < 0", function() {
 		compareOptions.compareURL = "www/autotest/images/baselines/rendering_8.png";
         compareOptions.colorTolerance = -1;
 		compareOptions.pixelTolerance = -1;
@@ -635,10 +635,54 @@ describe('Image Rendering', function () {
 			expect(window.numPixelsDifferent).toBe(1);
 		});
 	});
-	//test 14: captureAndCompare - verify tolerance is clip to 1
-	it("should clip tolerance to 1 when > 1 ", function() {
-		compareOptions.compareURL = "www/autotest/images/baselines/rendering_2.png";
+	//test 14: captureAndCompare - verify color tolerance is clip to 1
+	it("should clip color tolerance to 1 when > 1", function() {
+		var drawingCanvas = document.getElementById('canvas');
+		var context = drawingCanvas.getContext('2d');
+		// Check the element is in the DOM and the browser supports canvas
+		if(drawingCanvas.getContext) {
+			// Create the black square
+			context.clear();
+			context.strokeStyle = "#000000";
+			context.fillStyle = "#000000";
+			context.beginPath();
+			context.rect(0,0,256,256);
+			context.closePath();
+			context.stroke();
+			context.fill();
+		}
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_9.png";
         compareOptions.colorTolerance = 20;
+		compareOptions.pixelTolerance = 0;
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			expect(window.numPixelsDifferent).toBe(0);
+		});
+	});
+	//test 15: captureAndCompare - verify color tolerance is clip to 1
+	it("should clip pixel tolerance to 1 when > 1", function() {
+		var drawingCanvas = document.getElementById('canvas');
+		var context = drawingCanvas.getContext('2d');
+		// Check the element is in the DOM and the browser supports canvas
+		if(drawingCanvas.getContext) {
+			// Create the black square
+			context.clear();
+			context.strokeStyle = "#000000";
+			context.fillStyle = "#000000";
+			context.beginPath();
+			context.rect(0,0,256,256);
+			context.closePath();
+			context.stroke();
+			context.fill();
+		}
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_10.png";
+        compareOptions.colorTolerance = 0;
 		compareOptions.pixelTolerance = 20;
         callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
 		
@@ -652,8 +696,97 @@ describe('Image Rendering', function () {
 		});
 	});
 	
-	//test 4: capture(async) - performance and stress test, canvas
-	/*it("should capture an animation", function() {
+	//test 16: captureAndCompare - binary compare false
+	it("should create a diff image that has true difference pixel values", function() {
+		var drawingCanvas = document.getElementById('canvas');
+		var context = drawingCanvas.getContext('2d');
+		// Check the element is in the DOM and the browser supports canvas
+		if(drawingCanvas.getContext) {
+			// Create the yellow square
+			context.clear();
+			context.strokeStyle = "#000000";
+			context.fillStyle = "#FFFF00";
+			context.beginPath();
+			context.rect(0,0,256,256);
+			context.closePath();
+			context.stroke();
+			context.fill();
+		}
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_10.png";
+        compareOptions.colorTolerance = 0;
+		compareOptions.pixelTolerance = 0;
+		compareOptions.binaryDiff = false;
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			//got the compare, it should fail so we should have a diff image, load the diff image and compare against our expected
+			window.expectedImagePath = "../images/baselines/rendering_11.png"
+			//this function takes an array containing the paths to the images you want to load
+			loadImages([window.diffImagePath, window.expectedImagePath], function() {window.imagesLoaded = true;});
+			//wait for the actual and expected images to load, if not complete within 2 seconds, fail
+			waitsFor(function() {
+				return window.imagesLoaded;
+			}, "could not load one or more of the comparison images", 2000);
+			
+			//now that the actual and expected images are loaded, do the compare
+			runs(function() {
+				compareImages(window.imagesForCompare, .00, .00);
+				//wait for the compare to complete
+				waitsFor(function() {
+					return window.compareComplete;
+				});
+				//now that the compare is complete we can check to see if the test passed
+				runs(function() {
+					expect(window.numPixelsDifferent).toBe(0);
+				});
+			});
+		});
+	});
+	
+	//test 17: captureAndCompare - binary compare true
+	it("should create a diff image that has binary difference", function() {
+		compareOptions.compareURL = "www/autotest/images/baselines/rendering_10.png";
+        compareOptions.colorTolerance = 0;
+		compareOptions.pixelTolerance = 0;
+		compareOptions.binaryDiff = true;
+        callCaptureAndCompareDelay(captureAndCompareHandler, captureErrorHandler, captureOptions, compareOptions);
+		
+        //wait for the first callback indicating that the screen was captured, but file io has yet to happen    
+        waitsFor(function() {
+			return window.captureComplete;
+        }, "capture never completed", 2000);
+       
+		runs(function() {
+			//got the compare, it should fail so we should have a diff image, load the diff image and compare against our expected
+			window.expectedImagePath = "../images/baselines/rendering_10.png"
+			//this function takes an array containing the paths to the images you want to load
+			loadImages([window.diffImagePath, window.expectedImagePath], function() {window.imagesLoaded = true;});
+			//wait for the actual and expected images to load, if not complete within 2 seconds, fail
+			waitsFor(function() {
+				return window.imagesLoaded;
+			}, "could not load one or more of the comparison images", 2000);
+			
+			//now that the actual and expected images are loaded, do the compare
+			runs(function() {
+				compareImages(window.imagesForCompare, .00, .00);
+				//wait for the compare to complete
+				waitsFor(function() {
+					return window.compareComplete;
+				});
+				//now that the compare is complete we can check to see if the test passed
+				runs(function() {
+					expect(window.numPixelsDifferent).toBe(0);
+				});
+			});
+		});
+	});
+	//test 18: capture(async) - performance and stress test, canvas
+	it("should capture an animation", function() {
        var drawingCanvas = document.getElementById('canvas');
        captureOptions.x = drawingCanvas.offsetLeft;
        captureOptions.y = drawingCanvas.offsetTop;
@@ -663,11 +796,11 @@ describe('Image Rendering', function () {
 		captureOptions.asynchronous = true;
 		animate();
 		
-		waits(10000);
+		waits(5000);
 		runs(function() {
 			expect(window.stressTestError).toBe(false);
 		});
-	});*/
+	});
 	
 	
 });
