@@ -8,12 +8,12 @@
          ignoreCount = "0"
          continueAfterRunningActions = "No"
          filePath = "CordovaMobileSpecScreenCapture/Plugins/CDVScreenCapture.m"
-         timestampString = "387159796.823696"
+         timestampString = "387753221.498652"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "301"
-         endingLineNumber = "301"
-         landmarkName = "-compareImageData:::::::"
+         startingLineNumber = "305"
+         endingLineNumber = "305"
+         landmarkName = "-compareImagePixels:comparePixels:colorTolerance:pixelTolerance:diffPixels:binaryDiff:arrayLength:"
          landmarkType = "5">
       </FileBreakpoint>
       <FileBreakpoint
@@ -21,12 +21,12 @@
          ignoreCount = "0"
          continueAfterRunningActions = "No"
          filePath = "CordovaMobileSpecScreenCapture/Plugins/CDVScreenCapture.m"
-         timestampString = "387159796.823696"
+         timestampString = "387753221.498652"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "317"
-         endingLineNumber = "317"
-         landmarkName = "-compareImageData:::::::"
+         startingLineNumber = "321"
+         endingLineNumber = "321"
+         landmarkName = "-compareImagePixels:comparePixels:colorTolerance:pixelTolerance:diffPixels:binaryDiff:arrayLength:"
          landmarkType = "5">
       </FileBreakpoint>
       <FileBreakpoint
@@ -47,12 +47,12 @@
          ignoreCount = "0"
          continueAfterRunningActions = "No"
          filePath = "CordovaMobileSpecScreenCapture/Plugins/CDVScreenCapture.m"
-         timestampString = "387159796.823696"
+         timestampString = "387753221.498652"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "266"
-         endingLineNumber = "266"
-         landmarkName = "-getScreenBits::::"
+         startingLineNumber = "272"
+         endingLineNumber = "272"
+         landmarkName = "-getScreenBitsWithOptions:compareOptions:captureCount:command:"
          landmarkType = "5">
       </FileBreakpoint>
       <FileBreakpoint
@@ -65,7 +65,7 @@
          endingColumnNumber = "9223372036854775807"
          startingLineNumber = "135"
          endingLineNumber = "135"
-         landmarkName = "-getScreenBits::::"
+         landmarkName = "-getScreenBitsWithOptions:compareOptions:captureCount:command:"
          landmarkType = "5">
       </FileBreakpoint>
       <FileBreakpoint
@@ -78,7 +78,7 @@
          endingColumnNumber = "9223372036854775807"
          startingLineNumber = "79"
          endingLineNumber = "79"
-         landmarkName = "-getScreenBits::::"
+         landmarkName = "-getScreenBitsWithOptions:compareOptions:captureCount:command:"
          landmarkType = "5">
       </FileBreakpoint>
    </FileBreakpoints>

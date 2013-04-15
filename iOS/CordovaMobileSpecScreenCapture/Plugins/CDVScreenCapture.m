@@ -27,7 +27,7 @@
     NSObject* captureOptions = [command.arguments objectAtIndex:0];
     
     //get a capture
-    [self getScreenBits:captureOptions:nil:self.mCaptureCount++:command];
+    [self getScreenBitsWithOptions:captureOptions compareOptions:nil captureCount:self.mCaptureCount++ command:command];
 }
 
 //captureAndCompare called from Javascript.  CaptureAndCompare takes a screenshot, saved the image file if asked to, then does a comparison against
@@ -38,14 +38,14 @@
     NSObject* compareOptions = [command.arguments objectAtIndex:1];
     
     //get a capture
-    [self getScreenBits:captureOptions:compareOptions:self.mCaptureCount++:command];
+    [self getScreenBitsWithOptions:captureOptions compareOptions:compareOptions captureCount:self.mCaptureCount++ command:command];
     
 }
 
 //getScreenBits takes in sizeing and other options for the screen capture, then does a comparison if compareOptions is defined
 //the screen capture is done on the ui thread, and the file io and comparison is done on a background thread.  When all the work is done
 //it executes the command callback to javascript
-- (void) getScreenBits:(NSObject*)captureOptions : (NSObject*)compareOptions : (int) captureCount : (CDVInvokedUrlCommand*)command
+- (void) getScreenBitsWithOptions:(NSObject*)captureOptions compareOptions: (NSObject*)compareOptions captureCount : (int) captureCount command : (CDVInvokedUrlCommand*)command
 {
     //get the capture parameters
     NSInteger width = [[captureOptions valueForKey:@"width"] intValue];
@@ -143,7 +143,7 @@
         if(writeActual) {
             //construct the diff image file name
             NSString * actualFileName = [NSString stringWithFormat:@"%@_%d",fileName, captureCount];
-            actualFileLocation = [self writeImageToFile:image :actualFileName];
+            actualFileLocation = [self writeImageToFile:image fileName:actualFileName];
         }
         
         /*** COMPARE CODE ***/
@@ -197,11 +197,17 @@
                         diffData = nil;
                     
                     //get the raw data from the images in teh correct pixel format
-                    [self getRawDataFromImage:image : actualData];
-                    [self getRawDataFromImage:compareImage : compareData];
+                    [self getRawDataFromImage:image rawData : actualData];
+                    [self getRawDataFromImage:compareImage rawData : compareData];
                     
                     //do compare
-                    offCount = [self compareImageData: actualData : compareData : colorTolerance : pixelTolerance : diffData : binaryDiff : arrayLength];
+                    offCount = [self compareImagePixels: actualData
+                                        comparePixels: compareData
+                                       colorTolerance: colorTolerance
+                                       pixelTolerance: pixelTolerance
+                                           diffPixels: diffData
+                                           binaryDiff: binaryDiff
+                                          arrayLength: arrayLength];
                     
                     //output diffFile
                     if(offCount > 0 && writeDiffToFile && diffData != nil) {
@@ -230,7 +236,7 @@
                                 
                                 //construct the diff image file name
                                 NSString * diffFileName = [NSString stringWithFormat:@"%@_%d_Diff",fileName, captureCount];
-                                diffFileLocation = [self writeImageToFile:diffImage :diffFileName];
+                                diffFileLocation = [self writeImageToFile:diffImage fileName:diffFileName];
                             }
                         }
                     }
@@ -269,16 +275,14 @@
     
 }
 
-- (int) compareImageData: (unsigned char *) actualPixels : (unsigned char *) comparePixels : (float) colorTolerance :(float) pixelTolerance : (unsigned char *) diffPixels : (bool) binaryDiff : (int) arraySize
+- (int) compareImagePixels: (unsigned char *) actualPixels comparePixels: (unsigned char *) comparePixels colorTolerance : (float) colorTolerance pixelTolerance :(float) pixelTolerance diffPixels : (unsigned char *) diffPixels binaryDiff : (bool) binaryDiff arrayLength : (int) arrayLength
 {
-    //int length = arraySize;
-    //int largestArrayLength = (actualSize > compareSize) ? actualSize : compareSize;
     bool createDiff = (diffPixels == nil) ? false : true;
     int wholeColorDifference = (255 * colorTolerance)+0.5;
     int aDiff,rDiff,gDiff,bDiff;
     int offCount = 0;
     
-    for(int i=0; i < arraySize; i+=4) {
+    for(int i=0; i < arrayLength; i+=4) {
         //generate the difference
         @try {
             rDiff = abs(actualPixels[i] - comparePixels[i]);
@@ -317,13 +321,13 @@
             diffPixels[i+3] = 255;
         }
     }
-    if( ((float)offCount / (arraySize/4)) <= pixelTolerance) {
+    if( ((float)offCount / (arrayLength/4)) <= pixelTolerance) {
         offCount = 0;
     }
     return offCount;
 }
 //getRawDataFromImage copies the pixel bytes from the UIImage into an unsigned char** in the correct RGBA format
-- (void)getRawDataFromImage:(UIImage *) image : (unsigned char *)rawData
+- (void) getRawDataFromImage:(UIImage *) image rawData : (unsigned char *)rawData
 {
     CGImageRef imageRef = [image CGImage];
     NSUInteger width = CGImageGetWidth(imageRef);
@@ -343,7 +347,7 @@
 }
 //writeImageToFile writes the given UIImage to the caches directory of the application bundle.  It is possible to specify a subdirectory
 //in the provided fileName parameter such as "Screenshots/capture".  writeImageToFile will create the Screenshots directory if it does not already exist
-- (NSString *) writeImageToFile: (UIImage*) image : (NSString* ) fileName
+- (NSString *) writeImageToFile: (UIImage*) image fileName : (NSString* ) fileName
 {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
@@ -374,13 +378,8 @@
 //error callback for saving a file
 - (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo
 {
-    if (error != NULL)
-    {
+    if (error != NULL) {
          NSLog(@"error saving picture image");
-    }
-    else
-    {
-        // handle ok status
     }
 }
 
